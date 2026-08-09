@@ -46,9 +46,32 @@ function updateLoad(req, res) {
   }
 
   const previous = store.loads[index];
+  const allowedFields = [
+    'loadNumber',
+    'shipper',
+    'receiver',
+    'pickupLocation',
+    'deliveryLocation',
+    'pickupDate',
+    'deliveryDate',
+    'status',
+    'priority',
+    'rate',
+    'driverId',
+    'notes',
+    'files'
+  ];
+
+  const payload = allowedFields.reduce((acc, field) => {
+    if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+      acc[field] = req.body[field];
+    }
+    return acc;
+  }, {});
+
   const updated = {
     ...previous,
-    ...req.body,
+    ...payload,
     updatedAt: new Date().toISOString(),
     history: [
       ...(previous.history || []),

@@ -14,10 +14,18 @@ function listDrivers(req, res) {
 }
 
 function createDriver(req, res) {
+  const allowedFields = ['name', 'phone', 'email', 'status'];
+  const payload = allowedFields.reduce((acc, field) => {
+    if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+      acc[field] = req.body[field];
+    }
+    return acc;
+  }, {});
+
   const driver = {
     id: store.nextId('drivers'),
-    ...req.body,
-    rating: req.body.rating || 0,
+    ...payload,
+    rating: 0,
     loadsCount: 0,
     createdAt: new Date().toISOString()
   };
@@ -34,7 +42,15 @@ function updateDriver(req, res) {
     return res.status(404).json({ message: 'Driver not found' });
   }
 
-  store.drivers[index] = { ...store.drivers[index], ...req.body };
+  const allowedFields = ['name', 'phone', 'email', 'status'];
+  const payload = allowedFields.reduce((acc, field) => {
+    if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+      acc[field] = req.body[field];
+    }
+    return acc;
+  }, {});
+
+  store.drivers[index] = { ...store.drivers[index], ...payload };
   return res.json(store.drivers[index]);
 }
 

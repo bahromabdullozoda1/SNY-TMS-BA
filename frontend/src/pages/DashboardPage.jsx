@@ -29,13 +29,10 @@ export function DashboardPage() {
       setDrivers(driversData);
       setLoads(loadsData);
       setSummary(summaryData);
-      if (!selectedLoadId && loadsData.length) {
-        setSelectedLoadId(loadsData[0].id);
-      }
     } catch (err) {
       setError(err.message);
     }
-  }, [selectedLoadId]);
+  }, []);
 
   useEffect(() => {
     fetchAll();
@@ -45,8 +42,20 @@ export function DashboardPage() {
     const wsUrl = (import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws');
     const socket = new WebSocket(wsUrl);
     socket.onmessage = () => fetchAll();
-    return () => socket.close();
+    socket.onerror = () => setError('Realtime connection issue. Live updates are temporarily unavailable.');
+    socket.onclose = () => setError('Realtime connection closed. Refresh the page to reconnect.');
+    return () => {
+      socket.onerror = null;
+      socket.onclose = null;
+      socket.close();
+    };
   }, [fetchAll]);
+
+  useEffect(() => {
+    if (!selectedLoadId && loads.length) {
+      setSelectedLoadId(loads[0].id);
+    }
+  }, [selectedLoadId, loads]);
 
   const selectedLoad = useMemo(() => loads.find((load) => load.id === selectedLoadId), [loads, selectedLoadId]);
 
@@ -55,9 +64,17 @@ export function DashboardPage() {
     if (!load) {
       return;
     }
-
-    await api.updateLoad(loadId, { ...load, driverId, pickupDate, status: 'in_progress' });
-    fetchAll();
+    if (load.status === 'delivered' || load.status === 'cancelled') {
+      setError('Delivered or cancelled loads cannot be moved from the dispatch board.');
+      return;
+    }
+    try {
+      const nextStatus = load.status === 'new' ? 'in_progress' : load.status;
+      await api.updateLoad(loadId, { ...load, driverId, pickupDate, status: nextStatus });
+      fetchAll();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function saveNote(loadId, notes) {
@@ -66,8 +83,12 @@ export function DashboardPage() {
       return;
     }
 
-    await api.updateLoad(loadId, { ...load, notes });
-    fetchAll();
+    try {
+      await api.updateLoad(loadId, { ...load, notes });
+      fetchAll();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   return (

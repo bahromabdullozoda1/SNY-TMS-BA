@@ -33,7 +33,7 @@ npm install
 npm run dev
 ```
 
-> Тестовый пользователь: `admin@tms.local` / `Admin123!`
+> Seed admin user: `admin@tms.local` with password from `SEED_ADMIN_PASSWORD` in backend `.env`.
 
 ### 2) Frontend
 ```bash

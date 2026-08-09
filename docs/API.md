@@ -23,4 +23,4 @@
 - `GET /api/reports/summary`
 
 ## Auth Header
-Use authorization header with ******
+Use an authorization header containing a valid JWT token.

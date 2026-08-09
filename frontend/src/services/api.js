@@ -1,6 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
-let token = localStorage.getItem('tms_token') || '';
+let token = '';
 
 function getHeaders() {
   const headers = { 'Content-Type': 'application/json' };
@@ -12,11 +12,6 @@ function getHeaders() {
 
 export function setToken(nextToken) {
   token = nextToken;
-  if (nextToken) {
-    localStorage.setItem('tms_token', nextToken);
-  } else {
-    localStorage.removeItem('tms_token');
-  }
 }
 
 export async function request(path, options = {}) {

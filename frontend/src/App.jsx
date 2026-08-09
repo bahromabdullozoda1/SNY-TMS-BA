@@ -4,8 +4,8 @@ import { DashboardPage } from './pages/DashboardPage';
 import { api, setToken } from './services/api';
 
 function LoginScreen({ onAuthenticated }) {
-  const [email, setEmail] = useState('admin@tms.local');
-  const [password, setPassword] = useState('Admin123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   async function handleSubmit(event) {
@@ -33,7 +33,7 @@ function LoginScreen({ onAuthenticated }) {
 }
 
 function App() {
-  const [authenticated, setAuthenticated] = useState(Boolean(localStorage.getItem('tms_token')));
+  const [authenticated, setAuthenticated] = useState(false);
 
   if (!authenticated) {
     return <LoginScreen onAuthenticated={() => setAuthenticated(true)} />;

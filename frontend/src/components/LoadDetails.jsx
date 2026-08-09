@@ -10,8 +10,10 @@ export function LoadDetails({ load, onSaveNote }) {
         <p className="text-sm text-slate-600">{load.pickupLocation} → {load.deliveryLocation}</p>
       </div>
       <div>
-        <label className="text-sm font-medium text-slate-700">Notes</label>
+        <label htmlFor={`load-notes-${load.id}`} className="text-sm font-medium text-slate-700">Notes</label>
         <textarea
+          id={`load-notes-${load.id}`}
+          key={load.id}
           className="w-full mt-1 rounded border border-slate-300 p-2 text-sm"
           rows={4}
           defaultValue={load.notes || ''}

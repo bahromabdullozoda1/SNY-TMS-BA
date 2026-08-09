@@ -2,10 +2,12 @@ const express = require('express');
 const { body } = require('express-validator');
 const { listLoads, createLoad, updateLoad, deleteLoad } = require('../controllers/loadController');
 const { authenticate, authorize } = require('../middleware/auth');
+const { protectedRateLimiter } = require('../middleware/rateLimiter');
 const { validate } = require('../middleware/validate');
 
 const router = express.Router();
 
+router.use(protectedRateLimiter);
 router.use(authenticate);
 
 router.get('/', listLoads);

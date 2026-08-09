@@ -1,21 +1,36 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const counters = {
   users: 2,
   drivers: 3,
   loads: 4,
-  expenses: 2
+  expenses: 3
 };
+
+const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD || crypto.randomBytes(24).toString('hex');
+
+if (!process.env.SEED_ADMIN_PASSWORD) {
+  // eslint-disable-next-line no-console
+  console.warn('SEED_ADMIN_PASSWORD is not set. Seed admin password was generated for this runtime.');
+}
 
 const users = [
   {
     id: 1,
     name: 'Admin User',
     email: 'admin@tms.local',
-    password: bcrypt.hashSync('Admin123!', 10),
+    password: bcrypt.hashSync(seedAdminPassword, 10),
     role: 'admin'
   }
 ];
+
+const toISODate = (date) => date.toISOString().slice(0, 10);
+const dateFromToday = (offsetDays) => {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return toISODate(date);
+};
 
 const drivers = [
   { id: 1, name: 'John Carter', phone: '+1-555-0101', email: 'john@tms.local', status: 'active', rating: 4.8 },
@@ -30,8 +45,8 @@ const loads = [
     receiver: 'North Hub',
     pickupLocation: 'Dallas, TX',
     deliveryLocation: 'Chicago, IL',
-    pickupDate: '2026-08-11',
-    deliveryDate: '2026-08-12',
+    pickupDate: dateFromToday(1),
+    deliveryDate: dateFromToday(2),
     status: 'new',
     priority: 'high',
     rate: 2200,
@@ -47,8 +62,8 @@ const loads = [
     receiver: 'West DC',
     pickupLocation: 'Phoenix, AZ',
     deliveryLocation: 'Las Vegas, NV',
-    pickupDate: '2026-08-12',
-    deliveryDate: '2026-08-13',
+    pickupDate: dateFromToday(2),
+    deliveryDate: dateFromToday(3),
     status: 'in_progress',
     priority: 'medium',
     rate: 1400,
@@ -64,8 +79,8 @@ const loads = [
     receiver: 'South Yard',
     pickupLocation: 'Miami, FL',
     deliveryLocation: 'Atlanta, GA',
-    pickupDate: '2026-08-10',
-    deliveryDate: '2026-08-11',
+    pickupDate: dateFromToday(0),
+    deliveryDate: dateFromToday(1),
     status: 'delivered',
     priority: 'low',
     rate: 1800,
