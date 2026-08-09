@@ -1,9 +1,7 @@
 const express = require('express');
-const { body } = require('express-validator');
-const { listDrivers, createDriver, updateDriver, deleteDriver } = require('../controllers/driverController');
+const { listDrivers, getDriver, createDriver, updateDriver, deleteDriver } = require('../controllers/driverController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { protectedRateLimiter } = require('../middleware/rateLimiter');
-const { validate } = require('../middleware/validate');
 
 const router = express.Router();
 
@@ -11,17 +9,8 @@ router.use(protectedRateLimiter);
 router.use(authenticate);
 
 router.get('/', listDrivers);
-
-router.post(
-  '/',
-  authorize('admin', 'manager'),
-  body('name').trim().notEmpty(),
-  body('email').optional().isEmail(),
-  body('status').isIn(['active', 'inactive', 'on_leave']),
-  validate,
-  createDriver
-);
-
+router.get('/:id', getDriver);
+router.post('/', authorize('admin', 'manager'), createDriver);
 router.put('/:id', authorize('admin', 'manager'), updateDriver);
 router.delete('/:id', authorize('admin'), deleteDriver);
 
