@@ -79,7 +79,7 @@ test('admin can sign in and fetch report summary', async () => {
     });
 
     assert.equal(response.status, 200);
-    assert.equal(body.statusBreakdown.new, 1);
+    assert.equal(body.statusBreakdown.assigned, 1);
     assert.equal(body.financial.revenue, 5400);
   } finally {
     await client.close();

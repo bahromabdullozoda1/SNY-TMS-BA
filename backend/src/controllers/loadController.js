@@ -34,6 +34,11 @@ function resolveDriver(driverId) {
   return store.drivers.find((driver) => driver.id === driverId) || null;
 }
 
+function deriveLocation(city, state) {
+  const parts = [city, state].filter(Boolean);
+  return parts.length ? parts.join(', ') : '';
+}
+
 function buildHistoryEntries(previous, next, actor) {
   const changes = [];
 
@@ -45,7 +50,7 @@ function buildHistoryEntries(previous, next, actor) {
     const nextDriver = resolveDriver(next.driverId);
     changes.push({
       date: next.updatedAt,
-      action: nextDriver ? `Assigned to ${nextDriver.name}` : 'Unassigned from driver',
+      action: nextDriver ? `Driver assigned: ${nextDriver.name}` : 'Driver unassigned',
       actor
     });
   }
@@ -58,10 +63,36 @@ function buildHistoryEntries(previous, next, actor) {
     });
   }
 
-  if (previous.pickupDate !== next.pickupDate || previous.deliveryDate !== next.deliveryDate) {
+  if (previous.pickupDate !== next.pickupDate || previous.pickupTime !== next.pickupTime ||
+      previous.deliveryDate !== next.deliveryDate || previous.deliveryTime !== next.deliveryTime) {
     changes.push({
       date: next.updatedAt,
       action: 'Schedule updated',
+      actor
+    });
+  }
+
+  if (previous.pickupCity !== next.pickupCity || previous.pickupState !== next.pickupState ||
+      previous.deliveryCity !== next.deliveryCity || previous.deliveryState !== next.deliveryState) {
+    changes.push({
+      date: next.updatedAt,
+      action: 'Route updated',
+      actor
+    });
+  }
+
+  if (previous.truckNumber !== next.truckNumber || previous.trailerNumber !== next.trailerNumber) {
+    changes.push({
+      date: next.updatedAt,
+      action: 'Equipment updated',
+      actor
+    });
+  }
+
+  if (previous.rate !== next.rate || previous.driverPayPercent !== next.driverPayPercent) {
+    changes.push({
+      date: next.updatedAt,
+      action: 'Financials updated',
       actor
     });
   }
@@ -101,7 +132,25 @@ function listLoads(req, res) {
     const priorityMatch = !priority || load.priority === priority;
     const driverMatch = !driverId || Number(driverId) === load.driverId;
     const searchMatch = !search ||
-      [load.loadNumber, load.pickupLocation, load.deliveryLocation, load.notes]
+      [
+        load.loadNumber,
+        load.brokerLoadNumber,
+        load.broker,
+        load.customer,
+        load.dispatcher,
+        load.pickupCompany,
+        load.pickupCity,
+        load.pickupState,
+        load.pickupLocation,
+        load.deliveryCompany,
+        load.deliveryCity,
+        load.deliveryState,
+        load.deliveryLocation,
+        load.truckNumber,
+        load.trailerNumber,
+        load.notes
+      ]
+        .filter(Boolean)
         .join(' ')
         .toLowerCase()
         .includes(search.toLowerCase());
@@ -110,6 +159,11 @@ function listLoads(req, res) {
   });
 
   res.json(filtered);
+}
+
+function sanitizeNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function createLoad(req, res) {
@@ -121,11 +175,21 @@ function createLoad(req, res) {
     return res.status(400).json({ message: 'Assigned driver was not found' });
   }
 
+  const pickupCity = String(payload.pickupCity || '');
+  const pickupState = String(payload.pickupState || '');
+  const deliveryCity = String(payload.deliveryCity || '');
+  const deliveryState = String(payload.deliveryState || '');
+
   const load = {
     id: store.nextId('loads'),
     ...payload,
     driverId: normalizedDriverId,
-    rate: Number(payload.rate || 0),
+    rate: sanitizeNumber(payload.rate),
+    loadedMiles: sanitizeNumber(payload.loadedMiles),
+    deadheadMiles: sanitizeNumber(payload.deadheadMiles),
+    driverPayPercent: sanitizeNumber(payload.driverPayPercent),
+    pickupLocation: deriveLocation(pickupCity, pickupState) || String(payload.pickupLocation || ''),
+    deliveryLocation: deriveLocation(deliveryCity, deliveryState) || String(payload.deliveryLocation || ''),
     files: sanitizeFiles(payload.files),
     createdAt: now,
     updatedAt: now
@@ -148,16 +212,42 @@ function updateLoad(req, res) {
   const previous = store.loads[index];
   const allowedFields = [
     'loadNumber',
+    'brokerLoadNumber',
+    'broker',
+    'customer',
+    'dispatcher',
     'shipper',
     'receiver',
-    'pickupLocation',
-    'deliveryLocation',
+    // Pickup
+    'pickupCompany',
+    'pickupAddress',
+    'pickupCity',
+    'pickupState',
+    'pickupZip',
     'pickupDate',
+    'pickupTime',
+    'pickupLocation',
+    // Delivery
+    'deliveryCompany',
+    'deliveryAddress',
+    'deliveryCity',
+    'deliveryState',
+    'deliveryZip',
     'deliveryDate',
+    'deliveryTime',
+    'deliveryLocation',
+    // Assignment
+    'driverId',
+    'truckNumber',
+    'trailerNumber',
+    // Financials
+    'rate',
+    'loadedMiles',
+    'deadheadMiles',
+    'driverPayPercent',
+    // Meta
     'status',
     'priority',
-    'rate',
-    'driverId',
     'notes',
     'files'
   ];
@@ -181,7 +271,25 @@ function updateLoad(req, res) {
   }
 
   if (Object.prototype.hasOwnProperty.call(payload, 'rate')) {
-    payload.rate = Number(payload.rate || 0);
+    payload.rate = sanitizeNumber(payload.rate);
+  }
+
+  for (const numField of ['loadedMiles', 'deadheadMiles', 'driverPayPercent']) {
+    if (Object.prototype.hasOwnProperty.call(payload, numField)) {
+      payload[numField] = sanitizeNumber(payload[numField]);
+    }
+  }
+
+  if (payload.pickupCity !== undefined || payload.pickupState !== undefined) {
+    const city = payload.pickupCity !== undefined ? payload.pickupCity : previous.pickupCity;
+    const state = payload.pickupState !== undefined ? payload.pickupState : previous.pickupState;
+    payload.pickupLocation = deriveLocation(city, state) || previous.pickupLocation || '';
+  }
+
+  if (payload.deliveryCity !== undefined || payload.deliveryState !== undefined) {
+    const city = payload.deliveryCity !== undefined ? payload.deliveryCity : previous.deliveryCity;
+    const state = payload.deliveryState !== undefined ? payload.deliveryState : previous.deliveryState;
+    payload.deliveryLocation = deriveLocation(city, state) || previous.deliveryLocation || '';
   }
 
   const updated = {

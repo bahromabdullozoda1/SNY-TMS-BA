@@ -41,7 +41,10 @@ function normalizeLoadPayload(payload) {
   return {
     ...payload,
     driverId: payload.driverId ? Number(payload.driverId) : null,
-    rate: Number(payload.rate || 0)
+    rate: Number(payload.rate || 0),
+    loadedMiles: Number(payload.loadedMiles || 0),
+    deadheadMiles: Number(payload.deadheadMiles || 0),
+    driverPayPercent: Number(payload.driverPayPercent || 0)
   };
 }
 
@@ -355,7 +358,7 @@ function Workspace({ session, onLogout }) {
     handleUpdateLoad(loadId, { notes }, 'Notes saved.');
   }
 
-  function handleUploadFiles(loadId, fileList) {
+  function handleUploadFiles(loadId, fileList, category = 'other') {
     const load = loads.find((item) => item.id === loadId);
     if (!load || !fileList?.length) {
       return;
@@ -366,6 +369,7 @@ function Workspace({ session, onLogout }) {
       name: file.name,
       size: file.size,
       type: file.type || 'application/octet-stream',
+      category,
       uploadedAt: new Date().toISOString()
     }));
 

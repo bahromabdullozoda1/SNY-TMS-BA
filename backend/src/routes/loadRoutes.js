@@ -16,9 +16,13 @@ router.post(
   '/',
   authorize('admin', 'manager'),
   body('loadNumber').trim().notEmpty(),
-  body('status').isIn(['new', 'in_progress', 'delivered', 'cancelled']),
+  body('status').isIn(['new', 'assigned', 'in_transit', 'in_progress', 'at_pickup', 'loaded', 'at_delivery', 'delivered', 'invoiced', 'cancelled']),
   body('priority').isIn(['high', 'medium', 'low']),
-  body('driverId').optional().isInt(),
+  body('driverId').optional({ nullable: true, checkFalsy: true }).isInt(),
+  body('rate').optional().isNumeric(),
+  body('loadedMiles').optional().isNumeric(),
+  body('deadheadMiles').optional().isNumeric(),
+  body('driverPayPercent').optional().isNumeric(),
   validate,
   createLoad
 );

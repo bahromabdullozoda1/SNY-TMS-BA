@@ -3,8 +3,14 @@ import { getWeekDays } from '../utils/date';
 function statusTone(status) {
   return {
     new: 'bg-amber-100 border-amber-300 text-amber-900',
+    assigned: 'bg-sky-100 border-sky-300 text-sky-900',
+    in_transit: 'bg-blue-100 border-blue-300 text-blue-900',
     in_progress: 'bg-blue-100 border-blue-300 text-blue-900',
+    at_pickup: 'bg-violet-100 border-violet-300 text-violet-900',
+    loaded: 'bg-indigo-100 border-indigo-300 text-indigo-900',
+    at_delivery: 'bg-teal-100 border-teal-300 text-teal-900',
     delivered: 'bg-emerald-100 border-emerald-300 text-emerald-900',
+    invoiced: 'bg-green-100 border-green-300 text-green-900',
     cancelled: 'bg-rose-100 border-rose-300 text-rose-900'
   }[status] || 'bg-slate-100 border-slate-300 text-slate-900';
 }
