@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const store = require('../models/store');
 const { notifyClients } = require('../utils/websocket');
 
@@ -17,6 +18,7 @@ function sanitizeFiles(files = []) {
   return files
     .filter((file) => file && typeof file === 'object')
     .map((file) => ({
+      id: String(file.id || crypto.randomUUID()),
       name: String(file.name || 'document'),
       size: Number(file.size || 0),
       type: String(file.type || 'application/octet-stream'),

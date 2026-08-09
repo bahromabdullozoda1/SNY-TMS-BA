@@ -1,13 +1,6 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-const counters = {
-  users: 2,
-  drivers: 3,
-  loads: 4,
-  expenses: 3
-};
-
 const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD || crypto.randomBytes(24).toString('hex');
 
 if (!process.env.SEED_ADMIN_PASSWORD) {
@@ -96,8 +89,19 @@ const expenses = [
   { id: 2, category: 'maintenance', amount: 420 }
 ];
 
+const counters = {
+  users: Math.max(...users.map((user) => user.id), 0) + 1,
+  drivers: Math.max(...drivers.map((driver) => driver.id), 0) + 1,
+  loads: Math.max(...loads.map((load) => load.id), 0) + 1,
+  expenses: Math.max(...expenses.map((expense) => expense.id), 0) + 1
+};
+
 function nextId(entity) {
-  const value = counters[entity] || 1;
+  if (!Object.prototype.hasOwnProperty.call(counters, entity)) {
+    throw new Error(`Unknown entity counter: ${entity}`);
+  }
+
+  const value = counters[entity];
   counters[entity] = value + 1;
   return value;
 }

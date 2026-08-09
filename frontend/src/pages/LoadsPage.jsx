@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 
+const moneyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0
+});
+
 const emptyLoad = {
   loadNumber: '',
   shipper: '',
@@ -38,7 +44,7 @@ function toFormState(load) {
   };
 }
 
-export function LoadsPage({ loads, drivers, canManage, selectedLoadId, isSaving, onSelectLoad, onSaveLoad }) {
+export function LoadsPage({ loads, drivers, canManage, selectedLoadId, isSaving, onSelectLoad, onStartNewLoad, onSaveLoad }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [driverFilter, setDriverFilter] = useState('');
@@ -65,7 +71,7 @@ export function LoadsPage({ loads, drivers, canManage, selectedLoadId, isSaving,
 
     return (!search || searchText.includes(search.toLowerCase())) &&
       (!statusFilter || load.status === statusFilter) &&
-      (!driverFilter || Number(driverFilter) === load.driverId);
+      (!driverFilter || String(load.driverId ?? '') === driverFilter);
   }), [driverFilter, loads, search, statusFilter]);
 
   function updateField(field, value) {
@@ -82,7 +88,7 @@ export function LoadsPage({ loads, drivers, canManage, selectedLoadId, isSaving,
               <p className="text-sm text-slate-500">Manage customer, schedule, pricing, and assignment data.</p>
             </div>
             {selectedLoad && (
-              <button type="button" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700" onClick={() => onSelectLoad(null)}>
+              <button type="button" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700" onClick={onStartNewLoad}>
                 New load
               </button>
             )}
@@ -172,7 +178,7 @@ export function LoadsPage({ loads, drivers, canManage, selectedLoadId, isSaving,
                   <td className="px-3 py-2">{drivers.find((driver) => driver.id === load.driverId)?.name || 'Unassigned'}</td>
                   <td className="px-3 py-2 uppercase text-xs tracking-wide text-slate-600">{load.status.replace('_', ' ')}</td>
                   <td className="px-3 py-2">{load.pickupDate || '—'}</td>
-                  <td className="px-3 py-2">${Number(load.rate || 0)}</td>
+                  <td className="px-3 py-2">{moneyFormatter.format(Number(load.rate || 0))}</td>
                 </tr>
               ))}
               {filteredLoads.length === 0 && (

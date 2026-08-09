@@ -150,13 +150,21 @@ export function LoadDetails({ load, drivers, canManage, isSaving, onSaveNote, on
         <div className="flex items-center justify-between gap-2">
           <h4 className="text-sm font-medium text-slate-700">Documents</h4>
           {canManage && (
-            <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700">
+            <label
+              aria-disabled={isSaving}
+              className={`rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 ${
+                isSaving ? 'pointer-events-none opacity-60' : 'cursor-pointer'
+              }`}
+            >
               Add files
               <input
                 type="file"
                 multiple
                 className="hidden"
                 onChange={(event) => {
+                  if (isSaving) {
+                    return;
+                  }
                   onUploadFiles(load.id, event.target.files);
                   event.target.value = '';
                 }}
@@ -167,8 +175,8 @@ export function LoadDetails({ load, drivers, canManage, isSaving, onSaveNote, on
         </div>
         <ul className="mt-2 space-y-2">
           {(load.files || []).length === 0 && <li className="text-xs text-slate-500">No documents attached yet.</li>}
-          {(load.files || []).map((file) => (
-            <li key={`${file.name}-${file.uploadedAt}`} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+          {(load.files || []).map((file, index) => (
+            <li key={`${file.name}-${file.uploadedAt}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm">
               <div>
                 <p className="font-medium text-slate-800">{file.name}</p>
                 <p className="text-xs text-slate-500">{Math.max(1, Math.round((file.size || 0) / 1024))} KB • {formatDateTime(file.uploadedAt)}</p>

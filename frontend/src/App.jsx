@@ -46,8 +46,8 @@ function normalizeLoadPayload(payload) {
 }
 
 function LoginScreen({ onAuthenticated }) {
-  const [email, setEmail] = useState('admin@tms.local');
-  const [password, setPassword] = useState('ChangeMe123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -101,7 +101,8 @@ function Workspace({ session, onLogout }) {
   const [loads, setLoads] = useState([]);
   const [summary, setSummary] = useState(null);
   const [dispatchFilters, setDispatchFilters] = useState(initialFilters);
-  const [selectedLoadId, setSelectedLoadId] = useState(0);
+  const [selectedLoadId, setSelectedLoadId] = useState(null);
+  const [shouldAutoSelectLoad, setShouldAutoSelectLoad] = useState(true);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -164,15 +165,39 @@ function Workspace({ session, onLogout }) {
   }, [fetchAll]);
 
   useEffect(() => {
-    const socket = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws');
-    socket.onmessage = () => fetchAll();
-    socket.onerror = () => setInfo('Realtime updates are temporarily unavailable.');
-    socket.onclose = () => setInfo('Realtime connection closed. Refresh to reconnect.');
+    let socket;
+    let reconnectTimer;
+    let isCancelled = false;
+
+    function connect() {
+      socket = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws');
+      socket.onmessage = () => fetchAll();
+      socket.onerror = () => {
+        setInfo('Realtime updates are temporarily unavailable.');
+        socket.close();
+      };
+      socket.onclose = () => {
+        if (isCancelled) {
+          return;
+        }
+
+        setInfo('Realtime connection lost. Reconnecting…');
+        reconnectTimer = window.setTimeout(connect, 1500);
+      };
+    }
+
+    connect();
 
     return () => {
-      socket.onerror = null;
-      socket.onclose = null;
-      socket.close();
+      isCancelled = true;
+      window.clearTimeout(reconnectTimer);
+      if (socket) {
+        socket.onerror = null;
+        socket.onclose = null;
+        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          socket.close();
+        }
+      }
     };
   }, [fetchAll]);
 
@@ -190,15 +215,16 @@ function Workspace({ session, onLogout }) {
       return;
     }
 
-    if (selectedLoadId === 0) {
+    if (shouldAutoSelectLoad && selectedLoadId === null) {
       setSelectedLoadId(loads[0].id);
+      setShouldAutoSelectLoad(false);
       return;
     }
 
     if (selectedLoadId !== null && !loads.some((load) => load.id === selectedLoadId)) {
-      setSelectedLoadId(0);
+      setSelectedLoadId(loads[0].id);
     }
-  }, [loads, selectedLoadId]);
+  }, [loads, selectedLoadId, shouldAutoSelectLoad]);
 
   const selectedLoad = useMemo(
     () => loads.find((load) => load.id === selectedLoadId) || null,
@@ -259,7 +285,7 @@ function Workspace({ session, onLogout }) {
 
   function handleSaveLoad(payload, existingLoadId = null) {
     const normalizedPayload = normalizeLoadPayload(payload);
-    const targetId = existingLoadId || null;
+    const targetId = existingLoadId ?? null;
 
     if (targetId) {
       const currentLoad = loads.find((load) => load.id === targetId);
@@ -278,6 +304,7 @@ function Workspace({ session, onLogout }) {
     runMutation('Load created.', async () => {
       const created = await api.createLoad(normalizedPayload);
       if (created?.id) {
+        setShouldAutoSelectLoad(false);
         setSelectedLoadId(created.id);
       }
     });
@@ -287,6 +314,7 @@ function Workspace({ session, onLogout }) {
     runMutation('Load deleted.', async () => {
       await api.deleteLoad(loadId);
       if (selectedLoadId === loadId) {
+        setShouldAutoSelectLoad(true);
         setSelectedLoadId(null);
       }
     });
@@ -334,6 +362,7 @@ function Workspace({ session, onLogout }) {
     }
 
     const nextFiles = Array.from(fileList).map((file) => ({
+      id: crypto.randomUUID(),
       name: file.name,
       size: file.size,
       type: file.type || 'application/octet-stream',
@@ -350,11 +379,20 @@ function Workspace({ session, onLogout }) {
     }
 
     const files = (load.files || []).filter((file) => !(
-      file.name === fileToRemove.name &&
-      file.uploadedAt === fileToRemove.uploadedAt
+      file.id === fileToRemove.id
     ));
 
     handleUpdateLoad(loadId, { files }, 'Document removed.');
+  }
+
+  function handleSelectLoad(loadId) {
+    setShouldAutoSelectLoad(false);
+    setSelectedLoadId(loadId);
+  }
+
+  function handleStartNewLoad() {
+    setShouldAutoSelectLoad(false);
+    setSelectedLoadId(null);
   }
 
   return (
@@ -395,7 +433,7 @@ function Workspace({ session, onLogout }) {
               filters={dispatchFilters}
               canManage={canManage}
               onFiltersChange={setDispatchFilters}
-              onSelectLoad={setSelectedLoadId}
+              onSelectLoad={handleSelectLoad}
               onMoveLoad={handleMoveLoad}
               selectedLoadId={selectedLoadId}
             />
@@ -423,7 +461,8 @@ function Workspace({ session, onLogout }) {
               canManage={canManage}
               selectedLoadId={selectedLoadId}
               isSaving={isSaving}
-              onSelectLoad={setSelectedLoadId}
+              onSelectLoad={handleSelectLoad}
+              onStartNewLoad={handleStartNewLoad}
               onSaveLoad={handleSaveLoad}
             />
             <aside className="bg-white border border-slate-200 rounded-xl">
