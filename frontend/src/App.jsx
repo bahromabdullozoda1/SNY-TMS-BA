@@ -277,7 +277,7 @@ function Workspace({ session, onLogout }) {
       return;
     }
 
-    const nextStatus = load.status === 'new' ? 'in_progress' : load.status;
+    const nextStatus = load.status === 'new' ? 'assigned' : load.status;
     runMutation('Dispatch board updated.', () => api.updateLoad(loadId, {
       ...load,
       driverId,

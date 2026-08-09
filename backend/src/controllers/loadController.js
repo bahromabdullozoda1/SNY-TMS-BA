@@ -18,11 +18,12 @@ function sanitizeFiles(files = []) {
   return files
     .filter((file) => file && typeof file === 'object')
     .map((file) => ({
-      id: String(file.id || crypto.randomUUID()),
+      id: crypto.randomUUID(),
       name: String(file.name || 'document'),
       size: Number(file.size || 0),
       type: String(file.type || 'application/octet-stream'),
-      uploadedAt: file.uploadedAt || new Date().toISOString()
+      category: String(file.category || 'other'),
+      uploadedAt: new Date().toISOString()
     }));
 }
 

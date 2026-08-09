@@ -117,7 +117,7 @@ test('creating a load sanitizes files and stores driver assignment', async () =>
     assert.equal(response.status, 201);
     assert.equal(body.driverId, 1);
     assert.equal(body.rate, 1750);
-    assert.deepEqual(Object.keys(body.files[0]).sort(), ['id', 'name', 'size', 'type', 'uploadedAt'].sort());
+    assert.deepEqual(Object.keys(body.files[0]).sort(), ['category', 'id', 'name', 'size', 'type', 'uploadedAt'].sort());
     assert.equal(body.history.at(-1).action, 'Created');
   } finally {
     await client.close();

@@ -55,9 +55,14 @@ export function DispatchBoard({ drivers, loads, filters, canManage, onFiltersCha
           onChange={(event) => onFiltersChange({ ...filters, status: event.target.value })}
         >
           <option value="">All statuses</option>
-          <option value="new">New Load</option>
-          <option value="in_progress">In Progress</option>
+          <option value="new">New</option>
+          <option value="assigned">Assigned</option>
+          <option value="in_transit">In Transit</option>
+          <option value="at_pickup">At Pickup</option>
+          <option value="loaded">Loaded</option>
+          <option value="at_delivery">At Delivery</option>
           <option value="delivered">Delivered</option>
+          <option value="invoiced">Invoiced</option>
           <option value="cancelled">Cancelled</option>
         </select>
         <select
