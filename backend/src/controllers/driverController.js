@@ -1,4 +1,12 @@
 const store = require('../models/store');
+const { notifyClients } = require('../utils/websocket');
+
+function serializeDriver(driver) {
+  return {
+    ...driver,
+    loadsCount: store.loads.filter((load) => load.driverId === driver.id).length
+  };
+}
 
 function listDrivers(req, res) {
   const { status, search } = req.query;
@@ -10,7 +18,7 @@ function listDrivers(req, res) {
     return statusMatch && searchMatch;
   });
 
-  res.json(filtered);
+  res.json(filtered.map(serializeDriver));
 }
 
 function createDriver(req, res) {
@@ -26,12 +34,12 @@ function createDriver(req, res) {
     id: store.nextId('drivers'),
     ...payload,
     rating: 0,
-    loadsCount: 0,
     createdAt: new Date().toISOString()
   };
 
   store.drivers.push(driver);
-  res.status(201).json(driver);
+  notifyClients({ type: 'driver.created', payload: serializeDriver(driver) });
+  res.status(201).json(serializeDriver(driver));
 }
 
 function updateDriver(req, res) {
@@ -51,7 +59,8 @@ function updateDriver(req, res) {
   }, {});
 
   store.drivers[index] = { ...store.drivers[index], ...payload };
-  return res.json(store.drivers[index]);
+  notifyClients({ type: 'driver.updated', payload: serializeDriver(store.drivers[index]) });
+  return res.json(serializeDriver(store.drivers[index]));
 }
 
 function deleteDriver(req, res) {
@@ -62,7 +71,12 @@ function deleteDriver(req, res) {
     return res.status(404).json({ message: 'Driver not found' });
   }
 
-  store.drivers.splice(index, 1);
+  if (store.loads.some((load) => load.driverId === id && load.status !== 'cancelled')) {
+    return res.status(409).json({ message: 'Driver is assigned to active loads' });
+  }
+
+  const [deletedDriver] = store.drivers.splice(index, 1);
+  notifyClients({ type: 'driver.deleted', payload: { id: deletedDriver.id } });
   return res.status(204).send();
 }
 

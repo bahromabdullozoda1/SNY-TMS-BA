@@ -1,6 +1,96 @@
 const store = require('../models/store');
 const { notifyClients } = require('../utils/websocket');
 
+function sanitizeDriverId(value) {
+  if (value === '' || value === null || typeof value === 'undefined') {
+    return null;
+  }
+
+  return Number(value);
+}
+
+function sanitizeFiles(files = []) {
+  if (!Array.isArray(files)) {
+    return [];
+  }
+
+  return files
+    .filter((file) => file && typeof file === 'object')
+    .map((file) => ({
+      name: String(file.name || 'document'),
+      size: Number(file.size || 0),
+      type: String(file.type || 'application/octet-stream'),
+      uploadedAt: file.uploadedAt || new Date().toISOString()
+    }));
+}
+
+function resolveDriver(driverId) {
+  if (driverId === null) {
+    return null;
+  }
+
+  return store.drivers.find((driver) => driver.id === driverId) || null;
+}
+
+function buildHistoryEntries(previous, next, actor) {
+  const changes = [];
+
+  if (!previous) {
+    return [{ date: next.createdAt, action: 'Created', actor }];
+  }
+
+  if (previous.driverId !== next.driverId) {
+    const nextDriver = resolveDriver(next.driverId);
+    changes.push({
+      date: next.updatedAt,
+      action: nextDriver ? `Assigned to ${nextDriver.name}` : 'Unassigned from driver',
+      actor
+    });
+  }
+
+  if (previous.status !== next.status) {
+    changes.push({
+      date: next.updatedAt,
+      action: `Status changed to ${next.status}`,
+      actor
+    });
+  }
+
+  if (previous.pickupDate !== next.pickupDate || previous.deliveryDate !== next.deliveryDate) {
+    changes.push({
+      date: next.updatedAt,
+      action: 'Schedule updated',
+      actor
+    });
+  }
+
+  if (previous.notes !== next.notes) {
+    changes.push({
+      date: next.updatedAt,
+      action: 'Notes updated',
+      actor
+    });
+  }
+
+  if (JSON.stringify(previous.files || []) !== JSON.stringify(next.files || [])) {
+    changes.push({
+      date: next.updatedAt,
+      action: 'Documents updated',
+      actor
+    });
+  }
+
+  if (!changes.length) {
+    changes.push({
+      date: next.updatedAt,
+      action: 'Updated',
+      actor
+    });
+  }
+
+  return changes;
+}
+
 function listLoads(req, res) {
   const { status, priority, driverId, search } = req.query;
 
@@ -23,14 +113,22 @@ function listLoads(req, res) {
 function createLoad(req, res) {
   const payload = req.body;
   const now = new Date().toISOString();
+  const normalizedDriverId = sanitizeDriverId(payload.driverId);
+
+  if (normalizedDriverId !== null && !resolveDriver(normalizedDriverId)) {
+    return res.status(400).json({ message: 'Assigned driver was not found' });
+  }
+
   const load = {
     id: store.nextId('loads'),
     ...payload,
-    files: payload.files || [],
-    history: [{ date: now, action: 'Created', actor: req.user?.email || 'system' }],
+    driverId: normalizedDriverId,
+    rate: Number(payload.rate || 0),
+    files: sanitizeFiles(payload.files),
     createdAt: now,
     updatedAt: now
   };
+  load.history = buildHistoryEntries(null, load, req.user?.email || 'system');
 
   store.loads.push(load);
   notifyClients({ type: 'load.created', payload: load });
@@ -69,19 +167,30 @@ function updateLoad(req, res) {
     return acc;
   }, {});
 
+  if (Object.prototype.hasOwnProperty.call(payload, 'driverId')) {
+    payload.driverId = sanitizeDriverId(payload.driverId);
+    if (payload.driverId !== null && !resolveDriver(payload.driverId)) {
+      return res.status(400).json({ message: 'Assigned driver was not found' });
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, 'files')) {
+    payload.files = sanitizeFiles(payload.files);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, 'rate')) {
+    payload.rate = Number(payload.rate || 0);
+  }
+
   const updated = {
     ...previous,
     ...payload,
-    updatedAt: new Date().toISOString(),
-    history: [
-      ...(previous.history || []),
-      {
-        date: new Date().toISOString(),
-        action: 'Updated',
-        actor: req.user?.email || 'system'
-      }
-    ]
+    updatedAt: new Date().toISOString()
   };
+  updated.history = [
+    ...(previous.history || []),
+    ...buildHistoryEntries(previous, updated, req.user?.email || 'system')
+  ];
 
   store.loads[index] = updated;
   notifyClients({ type: 'load.updated', payload: updated });
